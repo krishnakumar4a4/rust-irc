@@ -18,3 +18,5 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 rocket_contrib = "0.3.6"
+
+rust-ini = "0.10"

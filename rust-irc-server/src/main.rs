@@ -90,15 +90,15 @@ fn broadcast_msg(message: Json<Message>, register: State<Register>) {
     if found {
         println!("sending message to all {}", message.message);
         for val in mutable_data_map.values() {
-            println!("sending to {}, {}",val.source_ip, val.session_id)
+            println!("sending to {}, {}", val.source_ip, val.session_id);
+            let time = time::now();
+            let formatted_time = time::strftime("%F:::%X", &time);
+            let uri_string = format!("http://localhost:8000/receive/{}/{}/{}"
+                                     , message.user_name, message.message, formatted_time.unwrap());
+            let uri: Url = uri_string.parse().unwrap();
+            let mut response = reqwest::get(uri).unwrap();
+            println!("send to client {}", response.text().unwrap());
         }
-        let time = time::now();
-        let formatted_time = time::strftime("%F:::%X",&time);
-        let uri_string = format!("http://localhost:8000/receive/{}/{}/{}"
-                                 ,message.user_name, message.message, formatted_time.unwrap());
-        let uri:Url = uri_string.parse().unwrap();
-        let mut response = reqwest::get(uri).unwrap();
-        println!("send to client {}", response.text().unwrap())
     }
 }
 

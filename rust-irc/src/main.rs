@@ -24,6 +24,10 @@ extern crate rocket_contrib;
 
 use rocket_contrib::{Json, Value};
 
+//Configuration
+extern crate ini;
+use ini::Ini;
+
 #[derive(Deserialize, Serialize, Clone)]
 struct ClientMessage {
     user_name: String,
@@ -33,7 +37,8 @@ struct ClientMessage {
 
 struct MetaData {
     client_data: Arc<Mutex<ClientData>>,
-    sqlite_db: Arc<Mutex<Connection>>
+    sqlite_db: Arc<Mutex<Connection>>,
+    server_ip: String
 }
 
 struct ClientData {
@@ -55,7 +60,9 @@ fn hello_user(user: String) -> String {
 #[get("/register/<name>")]
 fn register_me(name: String, meta_data: State<MetaData>) -> String {
     let mut mut_client_data = meta_data.client_data.lock().unwrap();
-    let uri_string = format!("http://localhost:8001/register/{}/127.0.0.1", name);
+    let uri_string = format!("http://{}:8001/register/{}/{}", meta_data.server_ip,
+                             name, mut_client_data.local_ip);
+//    println!("uri_string {}",uri_string);
     let uri: Url = uri_string.parse().unwrap();
     let mut response = reqwest::get(uri).unwrap();
     let session_id = response.text().unwrap();
@@ -65,7 +72,6 @@ fn register_me(name: String, meta_data: State<MetaData>) -> String {
     } else {
         mut_client_data.session_id = session_id;
         mut_client_data.user_name = name;
-        mut_client_data.local_ip = "127.0.0.1".to_string();
         println!("response code {}", response.status());
         "registered u".to_string()
     }
@@ -155,10 +161,18 @@ fn init() -> MetaData {
     user_name TEXT NOT NULL,\
     message TEXT NOT NULL,\
     time TEXT NOT NULL)", &[]).unwrap();
+
+    let conf = Ini::load_from_file("conf.ini").unwrap();
+
+    let section = conf.section(Some("Config".to_owned())).unwrap();
+    let local_ip = section.get("local_ip").unwrap();
+    let server_ip = section.get("server_ip").unwrap();
+
     //State
     MetaData {
-        client_data: Arc::new(Mutex::new(ClientData { session_id: "".to_string(), user_name: "".to_string(), local_ip: "".to_string() })),
-        sqlite_db: Arc::new(Mutex::new(conn))
+        client_data: Arc::new(Mutex::new(ClientData { session_id: "".to_string(), user_name: "".to_string(), local_ip: local_ip.to_string() })),
+        sqlite_db: Arc::new(Mutex::new(conn)),
+        server_ip: server_ip.to_string()
     }
 }
 
