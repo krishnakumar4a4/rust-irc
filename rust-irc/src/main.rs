@@ -24,11 +24,6 @@ extern crate rocket_contrib;
 
 use rocket_contrib::{Json, Value};
 
-//#[derive(Serialize)]
-//struct ClientMessagesJson {
-//    messages_vec: Vec<Json<ClientMessage>>
-//}
-
 #[derive(Deserialize, Serialize, Clone)]
 struct ClientMessage {
     user_name: String,
@@ -64,11 +59,16 @@ fn register_me(name: String, meta_data: State<MetaData>) -> String {
     let uri: Url = uri_string.parse().unwrap();
     let mut response = reqwest::get(uri).unwrap();
     let session_id = response.text().unwrap();
-    println!("response {}", session_id);
-    mut_client_data.session_id = session_id;
-    mut_client_data.user_name = name;
-    println!("response code {}", response.status());
-    "registered u".to_string()
+    if session_id == "0".to_string() {
+        println!("response {}", session_id);
+        "This name is already registered, please log out and try again".to_string()
+    } else {
+        mut_client_data.session_id = session_id;
+        mut_client_data.user_name = name;
+        mut_client_data.local_ip = "127.0.0.1".to_string();
+        println!("response code {}", response.status());
+        "registered u".to_string()
+    }
 }
 
 #[get("/send/<message>")]
@@ -131,6 +131,22 @@ fn get_messages(count: i64, meta_data: State<MetaData>) -> String {
     messages.join(",")
 }
 
+#[get("/logout")]
+fn logout(meta_data: State<MetaData>) -> String {
+    let mut mut_client_data = meta_data.client_data.lock().unwrap();
+    let uri_string = format!("http://localhost:8001/logout/{}/{}/{}",
+                             mut_client_data.session_id,mut_client_data.user_name,
+                             mut_client_data.local_ip);
+    let uri: Url = uri_string.parse().unwrap();
+    let mut response = reqwest::get(uri).unwrap();
+    //clearing client data on logout response
+    mut_client_data.session_id = "".to_string();
+    mut_client_data.user_name = "".to_string();
+    mut_client_data.local_ip = "".to_string();
+
+    response.text().unwrap()
+}
+
 fn init() -> MetaData {
     let conn = Connection::open("messages.db").unwrap();
     //Create table to store messages
@@ -149,6 +165,6 @@ fn init() -> MetaData {
 fn main() {
     rocket::ignite()
         .manage(init())
-        .mount("/", routes![index,hello_user,register_me,send_msg,receive_msg,get_messages])
+        .mount("/", routes![index,hello_user,register_me,send_msg,receive_msg,get_messages,logout])
         .launch();
 }

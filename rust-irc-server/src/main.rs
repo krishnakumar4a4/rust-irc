@@ -16,6 +16,8 @@ extern crate reqwest;
 extern crate url;
 use url::{Url};
 
+extern crate time;
+
 struct ClientId {
     source_ip: String,
     session_id: String
@@ -61,7 +63,7 @@ fn register(name: String, ip: String, register: State<Register>) -> String {
         mutable_data_map.insert(name, ClientId{source_ip: ip, session_id: session_id.clone()});
         session_id
     } else {
-        "This name is already registered".to_string()
+        "0".to_string()
     }
 }
 
@@ -90,10 +92,38 @@ fn broadcast_msg(message: Json<Message>, register: State<Register>) {
         for val in mutable_data_map.values() {
             println!("sending to {}, {}",val.source_ip, val.session_id)
         }
-        let uri_string = format!("http://localhost:8000/receive/{}/{}/now",message.user_name, message.message);
+        let time = time::now();
+        let formatted_time = time::strftime("%F:::%X",&time);
+        let uri_string = format!("http://localhost:8000/receive/{}/{}/{}"
+                                 ,message.user_name, message.message, formatted_time.unwrap());
         let uri:Url = uri_string.parse().unwrap();
         let mut response = reqwest::get(uri).unwrap();
         println!("send to client {}", response.text().unwrap())
+    }
+}
+
+#[get("/logout/<id>/<name>/<ip>")]
+fn logout(id: String, name: String, ip: String, register: State<Register>) -> String {
+    let mut mutable_data_map = register.data_map.lock().unwrap();
+    let found = match mutable_data_map.get(&name) {
+        Some(clientId) => {
+            if clientId.session_id == id && clientId.source_ip == ip {
+                1
+            } else {
+                2
+            }
+        },
+        None => {
+            3
+        }
+    };
+    if found == 1 {
+        mutable_data_map.remove(&name);
+        "logout successful".to_string()
+    } else if found ==2 {
+        "session cache not cleared, use different username".to_string()
+    } else {
+        "No user with the given user name exists to logout".to_string()
     }
 }
 
@@ -121,6 +151,6 @@ fn main() {
     rocket::ignite()
 //        .manage(start_redis())
         .manage(Register {data_map: Arc::new(Mutex::new(HashMap::new()))})
-        .mount("/", routes![index,register,broadcast_msg])
+        .mount("/", routes![index,register,broadcast_msg, logout])
         .launch();
 }
