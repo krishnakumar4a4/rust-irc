@@ -90,7 +90,7 @@ fn broadcast_msg(message: Json<Message>, register: State<Register>) {
         for val in mutable_data_map.values() {
             println!("sending to {}, {}",val.source_ip, val.session_id)
         }
-        let uri_string = format!("http://localhost:8000/receive/{}",message.message);
+        let uri_string = format!("http://localhost:8000/receive/{}/{}/now",message.user_name, message.message);
         let uri:Url = uri_string.parse().unwrap();
         let mut response = reqwest::get(uri).unwrap();
         println!("send to client {}", response.text().unwrap())
