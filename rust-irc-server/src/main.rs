@@ -4,17 +4,23 @@
 extern crate rocket;
 extern crate simple_redis;
 extern crate rand;
+
 use std::collections::HashMap;
 use rocket::State;
 use rand::{thread_rng, Rng};
 use std::sync::{Mutex, Arc};
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate rocket_contrib;
+
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate rocket_contrib;
+
 use rocket_contrib::{Json, Value};
 
 extern crate reqwest;
 extern crate url;
-use url::{Url};
+
+use url::Url;
 
 extern crate time;
 
@@ -42,13 +48,13 @@ fn index() -> &'static str {
 
 #[get("/register/<name>/<ip>")]
 fn register(name: String, ip: String, register: State<Register>) -> String {
-    println!("register {}",name);
+    println!("register {}", name);
     let mut mutable_data_map = register.data_map.lock().unwrap();
     let found = match mutable_data_map.get(&name) {
         Some(data) => {
             println!("already registered");
             true
-        },
+        }
         None => {
             println!("registering");
             false
@@ -59,15 +65,15 @@ fn register(name: String, ip: String, register: State<Register>) -> String {
         let mut rng = thread_rng();
         let id = rng.gen::<usize>();
         println!("id generated for {} is {}", name, id);
-        let session_id = format!("{}",id);
-        mutable_data_map.insert(name, ClientId{source_ip: ip, session_id: session_id.clone()});
+        let session_id = format!("{}", id);
+        mutable_data_map.insert(name, ClientId { source_ip: ip, session_id: session_id.clone() });
         session_id
     } else {
         "0".to_string()
     }
 }
 
-#[post("/broadcast",data="<message>")]
+#[post("/broadcast", data = "<message>")]
 fn broadcast_msg(message: Json<Message>, register: State<Register>) {
     let mutable_data_map = register.data_map.lock().unwrap();
     let found = match mutable_data_map.get(&message.user_name) {
@@ -78,10 +84,10 @@ fn broadcast_msg(message: Json<Message>, register: State<Register>) {
                 && clientId.source_ip == message.source_ip {
                 println!("clientid {};{}", clientId.session_id, clientId.source_ip);
                 true
-            }else {
+            } else {
                 false
             }
-        },
+        }
         None => {
             false
         }
@@ -93,7 +99,7 @@ fn broadcast_msg(message: Json<Message>, register: State<Register>) {
             println!("sending to {}, {}", val.source_ip, val.session_id);
             let time = time::now();
             let formatted_time = time::strftime("%F:::%X", &time);
-            let uri_string = format!("http://localhost:8000/receive/{}/{}/{}"
+            let uri_string = format!("http://{}:80/receive/{}/{}/{}", val.source_ip
                                      , message.user_name, message.message, formatted_time.unwrap());
             let uri: Url = uri_string.parse().unwrap();
             let mut response = reqwest::get(uri).unwrap();
@@ -112,7 +118,7 @@ fn logout(id: String, name: String, ip: String, register: State<Register>) -> St
             } else {
                 2
             }
-        },
+        }
         None => {
             3
         }
@@ -120,7 +126,7 @@ fn logout(id: String, name: String, ip: String, register: State<Register>) -> St
     if found == 1 {
         mutable_data_map.remove(&name);
         "logout successful".to_string()
-    } else if found ==2 {
+    } else if found == 2 {
         "session cache not cleared, use different username".to_string()
     } else {
         "No user with the given user name exists to logout".to_string()
@@ -149,8 +155,8 @@ fn logout(id: String, name: String, ip: String, register: State<Register>) -> St
 
 fn main() {
     rocket::ignite()
-//        .manage(start_redis())
-        .manage(Register {data_map: Arc::new(Mutex::new(HashMap::new()))})
+        //        .manage(start_redis())
+        .manage(Register { data_map: Arc::new(Mutex::new(HashMap::new())) })
         .mount("/", routes![index,register,broadcast_msg, logout])
         .launch();
 }

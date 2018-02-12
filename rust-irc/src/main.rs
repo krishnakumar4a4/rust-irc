@@ -60,9 +60,9 @@ fn hello_user(user: String) -> String {
 #[get("/register/<name>")]
 fn register_me(name: String, meta_data: State<MetaData>) -> String {
     let mut mut_client_data = meta_data.client_data.lock().unwrap();
-    let uri_string = format!("http://{}:8001/register/{}/{}", meta_data.server_ip,
+    let uri_string = format!("http://{}:80/register/{}/{}", meta_data.server_ip,
                              name, mut_client_data.local_ip);
-//    println!("uri_string {}",uri_string);
+    //    println!("uri_string {}",uri_string);
     let uri: Url = uri_string.parse().unwrap();
     let mut response = reqwest::get(uri).unwrap();
     let session_id = response.text().unwrap();
@@ -80,11 +80,11 @@ fn register_me(name: String, meta_data: State<MetaData>) -> String {
 #[get("/send/<message>")]
 fn send_msg(message: String, meta_data: State<MetaData>) {
     let client_data = meta_data.client_data.lock().unwrap();
-    let uri_string = format!("http://localhost:8001/broadcast");
+    let uri_string = format!("http://{}:80/broadcast",meta_data.server_ip);
     let uri: Url = uri_string.parse().unwrap();
 
     let mut map = HashMap::new();
-    map.insert("source_ip", "127.0.0.1");
+    map.insert("source_ip", &client_data.local_ip);
     map.insert("user_name", &client_data.user_name);
     map.insert("session_id", &client_data.session_id);
     map.insert("message", &message);
@@ -140,7 +140,7 @@ fn get_messages(count: i64, meta_data: State<MetaData>) -> String {
 #[get("/logout")]
 fn logout(meta_data: State<MetaData>) -> String {
     let mut mut_client_data = meta_data.client_data.lock().unwrap();
-    let uri_string = format!("http://localhost:8001/logout/{}/{}/{}",
+    let uri_string = format!("http://{}:80/logout/{}/{}/{}",meta_data.server_ip,
                              mut_client_data.session_id,mut_client_data.user_name,
                              mut_client_data.local_ip);
     let uri: Url = uri_string.parse().unwrap();
@@ -148,7 +148,6 @@ fn logout(meta_data: State<MetaData>) -> String {
     //clearing client data on logout response
     mut_client_data.session_id = "".to_string();
     mut_client_data.user_name = "".to_string();
-    mut_client_data.local_ip = "".to_string();
 
     response.text().unwrap()
 }
