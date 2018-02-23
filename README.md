@@ -5,3 +5,4 @@ A complete [how to guide](Building_a_simple_IRC_with_rust.pdf) for the repositor
 
 Both client and server are dockerized to make the deployment easy on any virtual machine or even on your local machine.
 
+# Made for rustathon2k18 at sahyadri engineering college, rustathon2k18.in
